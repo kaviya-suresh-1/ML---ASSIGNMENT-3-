@@ -1,0 +1,142 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler, LabelEncoder
+from sklearn.linear_model import LinearRegression, Ridge, Lasso
+from sklearn.metrics import mean_squared_error, r2_score
+import warnings
+
+warnings.filterwarnings('ignore')
+
+print("Student Name: S.KAVIYA , 24BAD059")
+
+file_path = r"C:\Users\Kaviya\Desktop\Machine_learning_lab\StudentsPerformance (1).csv"
+
+try:
+    df = pd.read_csv(file_path)
+    print("Dataset loaded successfully.")
+except FileNotFoundError:
+    print(f"Error: File not found at {file_path}")
+    exit()
+
+np.random.seed(42)
+
+df['Study Hours'] = np.random.randint(1, 10, size=len(df))
+df['Attendance'] = np.random.randint(60, 100, size=len(df))
+df['Sleep Hours'] = np.random.randint(5, 10, size=len(df))
+
+df['Final Score'] = (
+    df['math score'] +
+    df['reading score'] +
+    df['writing score']
+) / 3
+
+print("Added features: Study Hours, Attendance, Sleep Hours")
+print("Computed Target Variable: Final Score")
+
+le_parent = LabelEncoder()
+df['Parental Education Encoded'] = le_parent.fit_transform(
+    df['parental level of education']
+)
+
+le_prep = LabelEncoder()
+df['Test Prep Encoded'] = le_prep.fit_transform(
+    df['test preparation course']
+)
+
+features = [
+    'Study Hours',
+    'Attendance',
+    'Parental Education Encoded',
+    'Test Prep Encoded',
+    'Sleep Hours'
+]
+
+target = 'Final Score'
+
+X = df[features]
+y = df[target]
+
+if X.isnull().sum().sum() > 0:
+    X = X.fillna(X.median())
+
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X)
+X_scaled = pd.DataFrame(X_scaled, columns=features)
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X_scaled, y, test_size=0.2, random_state=42
+)
+
+lr_model = LinearRegression()
+lr_model.fit(X_train, y_train)
+
+y_pred = lr_model.predict(X_test)
+
+mse = mean_squared_error(y_test, y_pred)
+rmse = np.sqrt(mse)
+r2 = r2_score(y_test, y_pred)
+
+print("\n--- Linear Regression Performance ---")
+print(f"MSE  : {mse:.4f}")
+print(f"RMSE : {rmse:.4f}")
+print(f"R²   : {r2:.4f}")
+
+coef_df = pd.DataFrame({
+    'Feature': features,
+    'Coefficient': lr_model.coef_
+})
+
+print("\n--- Coefficients ---")
+print(coef_df)
+
+ridge = Ridge(alpha=1.0)
+ridge.fit(X_train, y_train)
+y_pred_ridge = ridge.predict(X_test)
+r2_ridge = r2_score(y_test, y_pred_ridge)
+
+print(f"\nRidge Regression R²: {r2_ridge:.4f}")
+
+lasso = Lasso(alpha=0.1)
+lasso.fit(X_train, y_train)
+y_pred_lasso = lasso.predict(X_test)
+r2_lasso = r2_score(y_test, y_pred_lasso)
+
+print(f"Lasso Regression R²: {r2_lasso:.4f}")
+
+plt.figure(figsize=(6,5))
+sns.scatterplot(x=y_test, y=y_pred, alpha=0.6)
+plt.plot([y_test.min(), y_test.max()],
+         [y_test.min(), y_test.max()],
+         'r--')
+plt.xlabel("Actual Score")
+plt.ylabel("Predicted Score")
+plt.title("Predicted vs Actual Scores")
+plt.tight_layout()
+plt.savefig("predicted_vs_actual.png")
+plt.show()
+
+plt.figure(figsize=(6,5))
+residuals = y_test - y_pred
+sns.histplot(residuals, kde=True, bins=20)
+plt.xlabel("Residual")
+plt.title("Residual Distribution")
+plt.tight_layout()
+plt.savefig("residual_distribution.png")
+plt.show()
+
+plt.figure(figsize=(6,5))
+sns.barplot(
+    x='Coefficient',
+    y='Feature',
+    data=coef_df,
+    orient='h'
+)
+plt.title("Feature Coefficients")
+plt.tight_layout()
+plt.savefig("feature_coefficients.png")
+plt.show()
+
+print("\nAll plots saved separately successfully.")
